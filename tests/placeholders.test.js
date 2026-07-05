@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createPlaceholderTextures, PLAYER_TEXTURES } from '../src/placeholders.js';
+import {
+  createPlaceholderTextures, PLAYER_TEXTURES, NPC_TEXTURE, HARLEY_TEXTURE,
+  OBJECT_TEXTURES, MEMORY_TEXTURES,
+} from '../src/placeholders.js';
 
 // Minimal stand-in for a Phaser scene: records generateTexture calls.
 function mockScene() {
@@ -15,10 +18,14 @@ function mockScene() {
 }
 
 describe('createPlaceholderTextures', () => {
-  it('generates the tiles strip and all four player facings, in order', () => {
+  it('generates every Phase 2 texture, in order', () => {
     const scene = mockScene();
     const keys = createPlaceholderTextures(scene);
-    const expected = ['tiles', 'player-down', 'player-up', 'player-left', 'player-right'];
+    const expected = [
+      'tiles', 'player-down', 'player-up', 'player-left', 'player-right',
+      'npc', 'harley', 'obj-note',
+      'memory-era1', 'memory-era2', 'memory-era3', 'memory-era4',
+    ];
     expect(keys).toEqual(expected);
     expect(scene.generated).toEqual(expected);
   });
@@ -30,5 +37,12 @@ describe('createPlaceholderTextures', () => {
       left: 'player-left',
       right: 'player-right',
     });
+  });
+
+  it('exposes one memory icon per era key', () => {
+    expect(Object.keys(MEMORY_TEXTURES)).toEqual(['era1', 'era2', 'era3', 'era4']);
+    expect(NPC_TEXTURE).toBe('npc');
+    expect(HARLEY_TEXTURE).toBe('harley');
+    expect(OBJECT_TEXTURES.note).toBe('obj-note');
   });
 });
