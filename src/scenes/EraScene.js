@@ -6,9 +6,11 @@ import { getEraConfig } from '../eras/index.js';
 import { validateEraConfig } from '../eras/validate.js';
 import { PLAYER_TEXTURES } from '../placeholders.js';
 import { resolveDirection } from '../movement.js';
+import { findTarget } from '../interaction.js';
+import DialogueBox from '../ui/DialogueBox.js';
 
-// UC-5: the reusable era engine. One scene, four data configs (Phase 2 adds
-// eras 2-4). An era is DATA — never subclass or fork this scene per era.
+// UC-5..UC-14: the reusable era engine. One scene, four data configs —
+// an era is DATA; never subclass or fork this scene per era.
 export default class EraScene extends Phaser.Scene {
   constructor() { super(SCENES.ERA); }
 
@@ -20,10 +22,12 @@ export default class EraScene extends Phaser.Scene {
     const era = getEraConfig(this.eraKey);
     validateEraConfig(era);
     this.era = era;
+    this.facing = 'down';
+    this.interactables = [];
 
     this.cameras.main.fadeIn(300, 13, 13, 26);
 
-    // Build the single-screen map from the config's 2D array.
+    // --- map (UC-5) ---
     const map = this.make.tilemap({
       data: era.map.data,
       tileWidth: era.map.tileSize,
@@ -31,28 +35,15 @@ export default class EraScene extends Phaser.Scene {
     });
     const tileset = map.addTilesetImage('tiles');
     this.layer = map.createLayer(0, tileset, 0, 0);
-
-    // Per-era mood tint (bright / golden / muted / sunset later).
     this.layer.forEachTile((tile) => { tile.tint = era.tint; });
 
-    // Spawn the player centered on the spawn tile.
+    // --- player (UC-5/6/7) ---
     const spawnX = era.spawn.x * TILE_SIZE + TILE_SIZE / 2;
     const spawnY = era.spawn.y * TILE_SIZE + TILE_SIZE / 2;
     this.player = this.physics.add.sprite(spawnX, spawnY, PLAYER_TEXTURES.down);
-
-    // TODO(Phase 3): outfit tint becomes Alexei's real outfit spritesheet.
     const runState = this.registry.get('runState');
     if (runState?.outfit) this.player.setTint(OUTFIT_TINTS[runState.outfit]);
 
-    // Dev aid: era label. Removed in Phase 2 when the dialogue box arrives.
-    this.add.text(4, 4, era.name, {
-      fontFamily: FONT, fontSize: '8px', color: COLORS.WHITE,
-    }).setDepth(10);
-
-    // TODO(Phase 2, UC-5): Era 1 intro line via dialogue box — wording is Harley's.
-    // TODO(Phase 2): objective, NPCs, memory, era music hook.
-
-    // --- UC-7: collision ---
     // Feet-only hitbox: the top of the 16x32 sprite may overlap walls behind
     // the player (top-down depth illusion); only the bottom 12x12 collides.
     this.player.body.setSize(12, 12).setOffset(2, 20);
@@ -61,20 +52,70 @@ export default class EraScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.player.setCollideWorldBounds(true);
 
-    // --- UC-6: input ---
+    // --- input (UC-6 + UC-8) ---
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,SPACE,ENTER');
+
+    // --- interaction prompt (UC-8) ---
+    this.prompt = this.add.text(0, 0, 'SPACE', {
+      fontFamily: FONT, fontSize: '7px', color: COLORS.WHITE, backgroundColor: '#1a1a2e',
+      padding: { x: 2, y: 2 },
+    }).setOrigin(0.5, 1).setDepth(15).setVisible(false);
+
+    // --- dialogue (UC-9) ---
+    this.dialogueBox = new DialogueBox(this);
+    if (era.intro) this.dialogueBox.open(era.intro);
+
+    // TODO(Phase 3): era music from Harley's playlist starts here.
+  }
+
+  // Feet-center tile: the 12x12 feet box sits at offset (2,20) of the 16x32 sprite,
+  // so its center is 10px below the sprite center.
+  playerTile() {
+    return {
+      tileX: Math.floor(this.player.x / TILE_SIZE),
+      tileY: Math.floor((this.player.y + 10) / TILE_SIZE),
+      facing: this.facing,
+    };
+  }
+
+  interactPressed() {
+    return (
+      Phaser.Input.Keyboard.JustDown(this.keys.SPACE) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.ENTER)
+    );
   }
 
   update() {
+    // Dialogue mode: world frozen, Space/Enter pages through (UC-9).
+    if (this.dialogueBox.isOpen()) {
+      this.player.setVelocity(0, 0);
+      this.prompt.setVisible(false);
+      if (this.interactPressed()) this.dialogueBox.advance();
+      return;
+    }
+
+    // Explore mode: movement (UC-6) ...
     const pressed = {
-      left: this.cursors.left.isDown || this.wasd.A.isDown,
-      right: this.cursors.right.isDown || this.wasd.D.isDown,
-      up: this.cursors.up.isDown || this.wasd.W.isDown,
-      down: this.cursors.down.isDown || this.wasd.S.isDown,
+      left: this.cursors.left.isDown || this.keys.A.isDown,
+      right: this.cursors.right.isDown || this.keys.D.isDown,
+      up: this.cursors.up.isDown || this.keys.W.isDown,
+      down: this.cursors.down.isDown || this.keys.S.isDown,
     };
     const { vx, vy, facing } = resolveDirection(pressed);
     this.player.setVelocity(vx * PLAYER_SPEED, vy * PLAYER_SPEED);
-    if (facing) this.player.setTexture(PLAYER_TEXTURES[facing]);
+    if (facing) {
+      this.facing = facing;
+      this.player.setTexture(PLAYER_TEXTURES[facing]);
+    }
+
+    // ... and targeting (UC-8): prompt over the faced interactable.
+    const target = findTarget(this.playerTile(), this.interactables);
+    if (target) {
+      this.prompt.setPosition(target.sprite.x, target.sprite.y - 20).setVisible(true);
+      if (this.interactPressed()) target.onInteract();
+    } else {
+      this.prompt.setVisible(false);
+    }
   }
 }

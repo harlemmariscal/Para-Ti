@@ -19,5 +19,6 @@ const config = {
 };
 
 // Gate boot on the pixel font so no text ever renders in a fallback font.
-const start = () => new Phaser.Game(config);
+// The instance is exposed for the verify skill's headless browser driver.
+const start = () => { window.__game = new Phaser.Game(config); };
 document.fonts.load(`16px ${FONT}`).then(start, start);
