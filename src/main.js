@@ -1,16 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT } from './constants.js';
-
-// Temporary proof-of-boot scene. Replaced by the real scene registry in Task 6.
-class ScaffoldScene extends Phaser.Scene {
-  create() {
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'PARA TI — ENGINE OK', {
-      fontFamily: FONT,
-      fontSize: '12px',
-      color: COLORS.WHITE,
-    }).setOrigin(0.5);
-  }
-}
+import BootScene from './scenes/BootScene.js';
+import TitleScene from './scenes/TitleScene.js';
+import OutfitScene from './scenes/OutfitScene.js';
+import EraScene from './scenes/EraScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -22,7 +15,7 @@ const config = {
   roundPixels: true,
   physics: { default: 'arcade', arcade: { debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [ScaffoldScene],
+  scene: [BootScene, TitleScene, OutfitScene, EraScene], // EndScene arrives in Phase 2
 };
 
 // Gate boot on the pixel font so no text ever renders in a fallback font.
