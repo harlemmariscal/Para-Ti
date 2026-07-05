@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMapData } from '../src/eras/mapUtils.js';
+import { buildMapData, wallRect } from '../src/eras/mapUtils.js';
 
 describe('buildMapData', () => {
   it('returns rows x cols of tiles', () => {
@@ -30,5 +30,19 @@ describe('buildMapData', () => {
     const data = buildMapData(5, 4, [[2, 1], [3, 2]]);
     expect(data[1][2]).toBe(1);
     expect(data[2][3]).toBe(1);
+  });
+});
+
+describe('wallRect', () => {
+  it('covers the full inclusive rectangle', () => {
+    const walls = wallRect(2, 3, 4, 5);
+    expect(walls).toHaveLength(9); // 3 x 3
+    expect(walls).toContainEqual([2, 3]);
+    expect(walls).toContainEqual([4, 5]);
+    expect(walls).toContainEqual([3, 4]);
+  });
+
+  it('handles a single-tile rect', () => {
+    expect(wallRect(7, 7, 7, 7)).toEqual([[7, 7]]);
   });
 });
