@@ -79,14 +79,14 @@ para-ti/
 
 **Goal:** The shell runs and the EraScene skeleton walks. No polish.
 
-- [ ] `git init` + first commit of the v2 docs
-- [ ] Initialize Phaser 3 project with Vite; set up folder structure
-- [ ] BootScene — preload assets (placeholders fine)
-- [ ] TitleScene — exact match to the approved screenshot
-- [ ] OutfitScene — 2 options, character preview, confirm
-- [ ] **EraScene skeleton** — loads a single era config; player walks a placeholder
+- [x] `git init` + first commit of the v2 docs
+- [x] Initialize Phaser 3 project with Vite; set up folder structure
+- [x] BootScene — preload assets (placeholders fine)
+- [ ] TitleScene — exact match to the approved screenshot *(built & verified against the documented spec; awaiting Harley's side-by-side check against his screenshot — the pinks in `src/constants.js` are tunable)*
+- [x] OutfitScene — 2 options, character preview, confirm
+- [x] **EraScene skeleton** — loads a single era config; player walks a placeholder
       single-screen map with 4-direction movement (arrows + WASD) and collision
-- [ ] One placeholder era config to prove the data-driven pattern
+- [x] One placeholder era config to prove the data-driven pattern
 
 **Deliverable:** Title → Outfit → Era 1 loads; you can walk around a placeholder screen.
 
