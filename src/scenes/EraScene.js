@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import {
-  SCENES, COLORS, FONT, TILE_SIZE, OUTFIT_TINTS,
+  SCENES, COLORS, FONT, TILE_SIZE, OUTFIT_TINTS, PLAYER_SPEED,
 } from '../constants.js';
 import { getEraConfig } from '../eras/index.js';
 import { validateEraConfig } from '../eras/validate.js';
 import { PLAYER_TEXTURES } from '../placeholders.js';
+import { resolveDirection } from '../movement.js';
 
 // UC-5: the reusable era engine. One scene, four data configs (Phase 2 adds
 // eras 2-4). An era is DATA — never subclass or fork this scene per era.
@@ -50,5 +51,30 @@ export default class EraScene extends Phaser.Scene {
 
     // TODO(Phase 2, UC-5): Era 1 intro line via dialogue box — wording is Harley's.
     // TODO(Phase 2): objective, NPCs, memory, era music hook.
+
+    // --- UC-7: collision ---
+    // Feet-only hitbox: the top of the 16x32 sprite may overlap walls behind
+    // the player (top-down depth illusion); only the bottom 12x12 collides.
+    this.player.body.setSize(12, 12).setOffset(2, 20);
+    this.layer.setCollision(era.map.collision);
+    this.physics.add.collider(this.player, this.layer);
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.player.setCollideWorldBounds(true);
+
+    // --- UC-6: input ---
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+  }
+
+  update() {
+    const pressed = {
+      left: this.cursors.left.isDown || this.wasd.A.isDown,
+      right: this.cursors.right.isDown || this.wasd.D.isDown,
+      up: this.cursors.up.isDown || this.wasd.W.isDown,
+      down: this.cursors.down.isDown || this.wasd.S.isDown,
+    };
+    const { vx, vy, facing } = resolveDirection(pressed);
+    this.player.setVelocity(vx * PLAYER_SPEED, vy * PLAYER_SPEED);
+    if (facing) this.player.setTexture(PLAYER_TEXTURES[facing]);
   }
 }
