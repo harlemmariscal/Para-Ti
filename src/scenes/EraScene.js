@@ -4,7 +4,7 @@ import {
 } from '../constants.js';
 import { getEraConfig } from '../eras/index.js';
 import { validateEraConfig } from '../eras/validate.js';
-import { PLAYER_TEXTURES } from '../placeholders.js';
+import { PLAYER_TEXTURES, NPC_TEXTURE } from '../placeholders.js';
 import { resolveDirection } from '../movement.js';
 import { findTarget } from '../interaction.js';
 import DialogueBox from '../ui/DialogueBox.js';
@@ -66,7 +66,39 @@ export default class EraScene extends Phaser.Scene {
     this.dialogueBox = new DialogueBox(this);
     if (era.intro) this.dialogueBox.open(era.intro);
 
+    // --- NPCs (UC-10): optional flavor, never required to progress (BR-3) ---
+    this.npcs = [];
+    for (const npcCfg of era.npcs ?? []) this.spawnNpc(npcCfg);
+
     // TODO(Phase 3): era music from Harley's playlist starts here.
+  }
+
+  spawnNpc(cfg) {
+    const startX = cfg.x * TILE_SIZE + TILE_SIZE / 2;
+    const startY = cfg.y * TILE_SIZE + TILE_SIZE / 2;
+    const sprite = this.add.sprite(startX, startY, NPC_TEXTURE);
+
+    // Short back-and-forth patrol along one axis. Placeholder NPCs don't
+    // collide with the player; they're flavor, not obstacles.
+    const prop = cfg.axis === 'h' ? 'x' : 'y';
+    const tween = this.tweens.add({
+      targets: sprite,
+      [prop]: (cfg.axis === 'h' ? startX : startY) + cfg.range * TILE_SIZE,
+      duration: cfg.range * 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Linear',
+    });
+
+    const entry = { x: cfg.x, y: cfg.y, sprite, onInteract: () => this.talkTo(cfg, tween) };
+    this.interactables.push(entry);
+    this.npcs.push({ sprite, entry, tween });
+  }
+
+  talkTo(cfg, tween) {
+    tween.pause(); // NPC stops (facing swap arrives with real sprites, Phase 3)
+    const pages = [{ speaker: cfg.name, lines: [cfg.line], attribution: cfg.attribution ?? null }];
+    this.dialogueBox.open(pages, () => tween.resume());
   }
 
   // Feet-center tile: the 12x12 feet box sits at offset (2,20) of the 16x32 sprite,
@@ -87,6 +119,12 @@ export default class EraScene extends Phaser.Scene {
   }
 
   update() {
+    // Interactables track patrolling NPCs by their live tile.
+    for (const { sprite, entry } of this.npcs) {
+      entry.x = Math.floor(sprite.x / TILE_SIZE);
+      entry.y = Math.floor((sprite.y + 10) / TILE_SIZE);
+    }
+
     // Dialogue mode: world frozen, Space/Enter pages through (UC-9).
     if (this.dialogueBox.isOpen()) {
       this.player.setVelocity(0, 0);
