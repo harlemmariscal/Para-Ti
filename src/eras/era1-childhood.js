@@ -21,16 +21,16 @@ export const era1 = {
   },
   spawn: { x: 4, y: 16 }, // near the classroom door, lower-left
 
-  // TODO: Harley writes this (era intro framing the journey — UC-5).
-  intro: [{ speaker: null, lines: ['[ ERA 1 INTRO — Harley writes this ]'] }],
+  // Harley's intro (2026-07-05).
+  intro: [{ speaker: null, lines: ['Fifteen years ago, a classroom.', 'Walk a while with me?'] }],
 
   // UC-11: find the note passed to her — it waits on a desk in the front row.
   objective: {
     type: 'interact',
     target: { x: 13, y: 6 },
     texture: OBJECT_TEXTURES.note,
-    // TODO: Harley writes this (what the note says).
-    found: [{ speaker: null, lines: ['[ THE NOTE — Harley writes this ]'] }],
+    // The note, as Harley wrote it (2026-07-05).
+    found: [{ speaker: null, lines: ['do you want to be my friend?', '[ ]yes    [ ]yes'] }],
   },
 
   memory: {
@@ -38,13 +38,13 @@ export const era1 = {
     name: 'The first spark',
     texture: MEMORY_TEXTURES.era1,
     x: 15, y: 3, // open floor at the front of the classroom
-    // TODO: Harley writes this (memory scene text).
-    scene: [{ speaker: null, lines: ['[ MEMORY: The first spark ]', '[ Harley writes this ]'] }],
+    // Harley's memory text (2026-07-05).
+    scene: [{ speaker: null, lines: ['* The first spark *', "I didn't have the words yet.", 'But I knew.'] }],
   },
 
   npcs: [
-    // TODO: Harley writes these lines (playlist lyric and/or real line).
-    { name: 'Classmate', x: 6, y: 8, axis: 'v', range: 2, line: '[ NPC LINE — Harley writes this ]', attribution: null },
-    { name: 'Classmate', x: 22, y: 12, axis: 'h', range: 3, line: '[ NPC LINE — Harley writes this ]', attribution: null },
+    // Song-title nods approved by Harley (2026-07-05); swap for exact lyric lines anytime.
+    { name: 'Classmate', x: 6, y: 8, axis: 'v', range: 2, line: "That song again! It's been stuck in my head all week.", attribution: '"August," 4rif' },
+    { name: 'Classmate', x: 22, y: 12, axis: 'h', range: 3, line: 'Pass it on: someone in the front row is blushing.', attribution: null },
   ],
 };

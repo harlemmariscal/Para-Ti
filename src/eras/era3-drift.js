@@ -30,8 +30,8 @@ export const era3 = {
     name: 'Finding my way back',
     texture: MEMORY_TEXTURES.era3,
     x: 27, y: 10,
-    // TODO: Harley writes this (memory scene text).
-    scene: [{ speaker: null, lines: ['[ MEMORY: I never stopped', 'finding my way back ]', '[ Harley writes this ]'] }],
+    // Harley's memory text (2026-07-05).
+    scene: [{ speaker: null, lines: ['* Finding my way back *', 'Even when we drifted, I never stopped', 'finding my way back to you.'] }],
   },
 
   npcs: [], // emptiness is the point (level design spec, era 3)

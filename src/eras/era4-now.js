@@ -26,13 +26,13 @@ export const era4 = {
     name: 'The two of you, now',
     texture: MEMORY_TEXTURES.era4,
     x: 15, y: 2, // with Harley — the icon floats above her sprite once revealed
-    // TODO: Harley writes this (the final dialogue moment — UC-15).
-    scene: [{ speaker: 'Harley', lines: ['[ FINAL WORDS ON THE HILL ]', '[ Harley writes this ]'] }],
+    // Harley's final words on the hill (2026-07-05).
+    scene: [{ speaker: 'Harley', lines: ['Hey. Took us fifteen years', 'to get up here.', "I'd do every one again."] }],
   },
 
   npcs: [
-    // TODO: Harley writes these lines.
-    { name: 'Townsperson', x: 8, y: 12, axis: 'h', range: 3, line: '[ NPC LINE — Harley writes this ]', attribution: null },
-    { name: 'Townsperson', x: 20, y: 16, axis: 'h', range: 2, line: '[ NPC LINE — Harley writes this ]', attribution: null },
+    // Song-title nods approved by Harley (2026-07-05); swap for exact lyric lines anytime.
+    { name: 'Townsperson', x: 8, y: 12, axis: 'h', range: 3, line: "Cuco on the radio today. Fits the sunset, doesn't it?", attribution: '"Lover Is a Day," Cuco' },
+    { name: 'Townsperson', x: 20, y: 16, axis: 'h', range: 2, line: "Someone's waiting at the top. Didn't seem to mind the wait.", attribution: null },
   ],
 };
