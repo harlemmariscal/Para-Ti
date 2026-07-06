@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import {
-  SCENES, COLORS, FONT, TILE_SIZE, OUTFIT_TINTS, PLAYER_SPEED,
+  SCENES, COLORS, FONT, TILE_SIZE, OUTFIT_TINTS, PLAYER_SPEED, GAME_WIDTH, GAME_HEIGHT,
 } from '../constants.js';
-import { getEraConfig } from '../eras/index.js';
+import { getEraConfig, ERAS } from '../eras/index.js';
 import { validateEraConfig } from '../eras/validate.js';
-import { PLAYER_TEXTURES, NPC_TEXTURE } from '../placeholders.js';
+import { PLAYER_TEXTURES, NPC_TEXTURE, HARLEY_TEXTURE } from '../placeholders.js';
 import { resolveDirection } from '../movement.js';
-import { findTarget } from '../interaction.js';
+import { findTarget, inZone } from '../interaction.js';
+import { addMemory } from '../state.js';
 import DialogueBox from '../ui/DialogueBox.js';
 
 // UC-5..UC-14: the reusable era engine. One scene, four data configs —
@@ -70,7 +71,124 @@ export default class EraScene extends Phaser.Scene {
     this.npcs = [];
     for (const npcCfg of era.npcs ?? []) this.spawnNpc(npcCfg);
 
+    // --- objective + memory + tracker (UC-11..13) ---
+    this.objectiveDone = false;
+    this.memoryCollected = false;
+    this.setupObjective();
+    this.buildTracker();
+
+    // Era 4: Harley waits at the summit (UC-15).
+    if (era.harley) {
+      this.harleySprite = this.add.sprite(
+        era.harley.x * TILE_SIZE + TILE_SIZE / 2,
+        era.harley.y * TILE_SIZE + TILE_SIZE / 2,
+        HARLEY_TEXTURE,
+      ).setDepth(5);
+    }
+
+    if (era.weather === 'rain') this.startRain();
+
     // TODO(Phase 3): era music from Harley's playlist starts here.
+  }
+
+  setupObjective() {
+    const obj = this.era.objective;
+    if (obj.type !== 'interact') return; // 'reach' zones are polled in update()
+    const sprite = this.add.image(
+      obj.target.x * TILE_SIZE + TILE_SIZE / 2,
+      obj.target.y * TILE_SIZE + TILE_SIZE / 2,
+      obj.texture,
+    ).setDepth(5);
+    this.interactables.push({
+      x: obj.target.x,
+      y: obj.target.y,
+      sprite,
+      onInteract: () => {
+        if (this.objectiveDone) return;
+        this.dialogueBox.open(obj.found, () => this.completeObjective());
+      },
+    });
+  }
+
+  completeObjective() {
+    if (this.objectiveDone) return;
+    this.objectiveDone = true;
+    this.revealMemory();
+  }
+
+  revealMemory() {
+    const m = this.era.memory;
+    const x = m.x * TILE_SIZE + TILE_SIZE / 2;
+    // In era 4 the icon floats above waiting Harley instead of sitting on the floor.
+    const y = this.harleySprite
+      ? this.harleySprite.y - 26
+      : m.y * TILE_SIZE + TILE_SIZE / 2;
+
+    this.memorySprite = this.add.image(x, y, m.texture).setDepth(6).setAlpha(0);
+    this.tweens.add({ targets: this.memorySprite, alpha: 1, duration: 400 });
+    this.tweens.add({
+      targets: this.memorySprite, y: y - 3, duration: 700,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+    this.interactables.push({ x: m.x, y: m.y, sprite: this.memorySprite, onInteract: () => this.collectMemory() });
+  }
+
+  collectMemory() {
+    if (this.memoryCollected) return;
+    this.memoryCollected = true;
+    const m = this.era.memory;
+
+    // Collection cue: the icon floats up and fades (UC-12).
+    // TODO(Phase 3): collection SFX.
+    this.tweens.add({
+      targets: this.memorySprite, y: this.memorySprite.y - 24, alpha: 0,
+      duration: 700, ease: 'Sine.easeIn',
+    });
+
+    this.dialogueBox.open(m.scene, () => {
+      const runState = addMemory(this.registry.get('runState'), m.id);
+      this.registry.set('runState', runState);
+      this.updateTracker(runState.memories.length);
+      this.time.delayedCall(500, () => this.advance());
+    });
+  }
+
+  // UC-13: four corner icons, dim until collected.
+  buildTracker() {
+    this.trackerIcons = ERAS.map((era, i) =>
+      this.add.image(GAME_WIDTH - 66 + i * 18, 12, era.memory.texture).setDepth(10).setAlpha(0.25));
+    this.updateTracker(this.registry.get('runState').memories.length);
+  }
+
+  updateTracker(count) {
+    this.trackerIcons.forEach((icon, i) => icon.setAlpha(i < count ? 1 : 0.25));
+  }
+
+  // UC-14: fade to the next era, or the ending after the last (UC-16).
+  advance() {
+    this.cameras.main.fadeOut(400, 13, 13, 26);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      if (this.era.next) this.scene.start(SCENES.ERA, { eraKey: this.era.next });
+      else this.scene.start(SCENES.END);
+    });
+  }
+
+  // Era 3's grey rain: thin falling streaks. Placeholder-grade on purpose.
+  startRain() {
+    for (let i = 0; i < 60; i++) {
+      const drop = this.add.rectangle(
+        Phaser.Math.Between(0, GAME_WIDTH),
+        Phaser.Math.Between(-GAME_HEIGHT, 0),
+        1, 6, 0xcfd6e6, 0.6,
+      ).setDepth(8);
+      this.tweens.add({
+        targets: drop,
+        y: GAME_HEIGHT + 8,
+        duration: Phaser.Math.Between(600, 1100),
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 800),
+      });
+    }
   }
 
   spawnNpc(cfg) {
@@ -154,6 +272,12 @@ export default class EraScene extends Phaser.Scene {
       if (this.interactPressed()) target.onInteract();
     } else {
       this.prompt.setVisible(false);
+    }
+
+    // 'reach' objectives complete on entering the zone (UC-11).
+    if (!this.objectiveDone && this.era.objective.type === 'reach') {
+      const { tileX, tileY } = this.playerTile();
+      if (inZone(tileX, tileY, this.era.objective.zone)) this.completeObjective();
     }
   }
 }

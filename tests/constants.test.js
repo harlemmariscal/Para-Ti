@@ -11,12 +11,13 @@ describe('constants', () => {
     expect(GAME_HEIGHT % TILE_SIZE).toBe(0);
   });
 
-  it('defines all four Phase 1 scene keys', () => {
+  it('defines all five scene keys', () => {
     expect(SCENES).toEqual({
       BOOT: 'BootScene',
       TITLE: 'TitleScene',
       OUTFIT: 'OutfitScene',
       ERA: 'EraScene',
+      END: 'EndScene',
     });
   });
 

@@ -9,6 +9,7 @@ export const SCENES = {
   TITLE: 'TitleScene',
   OUTFIT: 'OutfitScene',
   ERA: 'EraScene',
+  END: 'EndScene',
 };
 
 // CSS color strings (for text styles / backgrounds).
