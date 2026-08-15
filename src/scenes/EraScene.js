@@ -1,10 +1,14 @@
 import Phaser from 'phaser';
 import {
-  SCENES, COLORS, FONT, TILE_SIZE, OUTFIT_TINTS, PLAYER_SPEED, GAME_WIDTH, GAME_HEIGHT,
+  SCENES, COLORS, FONT, TILE_SIZE, PLAYER_SPEED, GAME_WIDTH, GAME_HEIGHT,
+  CAMERA_ZOOM, CAMERA_LERP,
 } from '../constants.js';
 import { getEraConfig, ERAS } from '../eras/index.js';
 import { validateEraConfig } from '../eras/validate.js';
-import { PLAYER_TEXTURES, NPC_TEXTURE, HARLEY_TEXTURE } from '../placeholders.js';
+import {
+  playerTexture, playerAnim, NPC_TEXTURE, HARLEY_TEXTURE, PROP_TEXTURES, TILES,
+  GRASS_VARIANTS,
+} from '../placeholders.js';
 import { resolveDirection } from '../movement.js';
 import { findTarget, inZone } from '../interaction.js';
 import { addMemory } from '../state.js';
@@ -26,7 +30,12 @@ export default class EraScene extends Phaser.Scene {
     this.facing = 'down';
     this.interactables = [];
 
+    // Two cameras: the world scrolls and zooms, the HUD does neither. Without
+    // this split the tracker and dialogue box would scroll off with the map and
+    // render at 2x. Every object must be handed to world() or ui().
+    this.uiCam = this.cameras.add(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.cameras.main.fadeIn(300, 13, 13, 26);
+    this.uiCam.fadeIn(300, 13, 13, 26);
 
     // --- map (UC-5) ---
     const map = this.make.tilemap({
@@ -35,15 +44,18 @@ export default class EraScene extends Phaser.Scene {
       tileHeight: era.map.tileSize,
     });
     const tileset = map.addTilesetImage('tiles');
-    this.layer = map.createLayer(0, tileset, 0, 0);
+    this.layer = this.world(map.createLayer(0, tileset, 0, 0));
     this.layer.forEachTile((tile) => { tile.tint = era.tint; });
+    this.scatterProps(map, era);
 
     // --- player (UC-5/6/7) ---
     const spawnX = era.spawn.x * TILE_SIZE + TILE_SIZE / 2;
     const spawnY = era.spawn.y * TILE_SIZE + TILE_SIZE / 2;
-    this.player = this.physics.add.sprite(spawnX, spawnY, PLAYER_TEXTURES.down);
     const runState = this.registry.get('runState');
-    if (runState?.outfit) this.player.setTint(OUTFIT_TINTS[runState.outfit]);
+    this.outfit = runState?.outfit ?? 'casual';
+    this.player = this.world(
+      this.physics.add.sprite(spawnX, spawnY, playerTexture(this.outfit, 'down')),
+    );
 
     // Feet-only hitbox: the top of the 16x32 sprite may overlap walls behind
     // the player (top-down depth illusion); only the bottom 12x12 collides.
@@ -53,18 +65,26 @@ export default class EraScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.player.setCollideWorldBounds(true);
 
+    // --- camera (BW2 framing) ---
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.cameras.main.setZoom(CAMERA_ZOOM);
+    this.cameras.main.startFollow(this.player, true, CAMERA_LERP, CAMERA_LERP);
+
     // --- input (UC-6 + UC-8) ---
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,SPACE,ENTER');
 
     // --- interaction prompt (UC-8) ---
-    this.prompt = this.add.text(0, 0, 'SPACE', {
+    // Lives in the world so it tracks its target, but counter-scaled against the
+    // camera zoom so the pixel font still renders 1:1 instead of doubled.
+    this.prompt = this.world(this.add.text(0, 0, 'SPACE', {
       fontFamily: FONT, fontSize: '7px', color: COLORS.WHITE, backgroundColor: '#1a1a2e',
       padding: { x: 2, y: 2 },
-    }).setOrigin(0.5, 1).setDepth(15).setVisible(false);
+    })).setOrigin(0.5, 1).setScale(1 / CAMERA_ZOOM).setDepth(9000).setVisible(false);
 
     // --- dialogue (UC-9) ---
     this.dialogueBox = new DialogueBox(this);
+    this.ui(this.dialogueBox.root);
     if (era.intro) this.dialogueBox.open(era.intro);
 
     // --- NPCs (UC-10): optional flavor, never required to progress (BR-3) ---
@@ -79,11 +99,11 @@ export default class EraScene extends Phaser.Scene {
 
     // Era 4: Harley waits at the summit (UC-15).
     if (era.harley) {
-      this.harleySprite = this.add.sprite(
+      this.harleySprite = this.world(this.add.sprite(
         era.harley.x * TILE_SIZE + TILE_SIZE / 2,
         era.harley.y * TILE_SIZE + TILE_SIZE / 2,
         HARLEY_TEXTURE,
-      ).setDepth(5);
+      ));
     }
 
     if (era.weather === 'rain') this.startRain();
@@ -91,14 +111,61 @@ export default class EraScene extends Phaser.Scene {
     // TODO(Phase 3): era music from Harley's playlist starts here.
   }
 
+  // Camera routing. Each object belongs to exactly one camera; anything that
+  // skips both would draw twice, once scrolled and once not.
+  world(obj) { this.uiCam.ignore(obj); return obj; }
+
+  ui(obj) { this.cameras.main.ignore(obj); return obj; }
+
+  // Ground dressing, in one pass over the walkable tiles: swap some to cosmetic
+  // ground variants so the map doesn't read as a lattice, and stand a few tufts
+  // and flowers on top. Seeded by era key, so an era looks identical on replay.
+  scatterProps(map, era) {
+    const rng = new Phaser.Math.RandomDataGenerator([era.key]);
+    const props = [PROP_TEXTURES.tuft, PROP_TEXTURES.tuft, PROP_TEXTURES.flower];
+    const variants = GRASS_VARIANTS.slice(1); // index 0 stays the clean majority
+
+    for (let ty = 0; ty < map.height; ty++) {
+      for (let tx = 0; tx < map.width; tx++) {
+        const tile = map.getTileAt(tx, ty);
+        if (tile?.index !== TILES.GRASS) continue;
+
+        // Cosmetic only — every variant is still ground, so collision (set on
+        // the solid index alone) is untouched by this swap.
+        if (rng.frac() > 0.62) {
+          tile.index = rng.pick(variants);
+          tile.tint = era.tint;
+        }
+
+        if (rng.frac() > 0.12) continue;
+        const prop = this.world(this.add.image(
+          tx * TILE_SIZE + TILE_SIZE / 2,
+          ty * TILE_SIZE + TILE_SIZE / 2,
+          rng.pick(props),
+        ));
+        prop.setTint(era.tint).setDepth(prop.y);
+      }
+    }
+  }
+
+  // Painter's-algorithm depth: whoever stands lower on the screen draws in
+  // front. This is what lets Alexei pass behind a townsperson.
+  sortDepth() {
+    this.player.setDepth(this.player.y);
+    for (const { sprite } of this.npcs) sprite.setDepth(sprite.y);
+    if (this.harleySprite) this.harleySprite.setDepth(this.harleySprite.y);
+    if (this.memorySprite) this.memorySprite.setDepth(this.memorySprite.y);
+  }
+
   setupObjective() {
     const obj = this.era.objective;
     if (obj.type !== 'interact') return; // 'reach' zones are polled in update()
-    const sprite = this.add.image(
+    const sprite = this.world(this.add.image(
       obj.target.x * TILE_SIZE + TILE_SIZE / 2,
       obj.target.y * TILE_SIZE + TILE_SIZE / 2,
       obj.texture,
-    ).setDepth(5);
+    ));
+    sprite.setDepth(sprite.y);
     this.interactables.push({
       x: obj.target.x,
       y: obj.target.y,
@@ -124,7 +191,7 @@ export default class EraScene extends Phaser.Scene {
       ? this.harleySprite.y - 26
       : m.y * TILE_SIZE + TILE_SIZE / 2;
 
-    this.memorySprite = this.add.image(x, y, m.texture).setDepth(6).setAlpha(0);
+    this.memorySprite = this.world(this.add.image(x, y, m.texture)).setAlpha(0);
     this.tweens.add({ targets: this.memorySprite, alpha: 1, duration: 400 });
     this.tweens.add({
       targets: this.memorySprite, y: y - 3, duration: 700,
@@ -156,7 +223,8 @@ export default class EraScene extends Phaser.Scene {
   // UC-13: four corner icons, dim until collected.
   buildTracker() {
     this.trackerIcons = ERAS.map((era, i) =>
-      this.add.image(GAME_WIDTH - 66 + i * 18, 12, era.memory.texture).setDepth(10).setAlpha(0.25));
+      this.ui(this.add.image(GAME_WIDTH - 66 + i * 18, 12, era.memory.texture))
+        .setDepth(10).setAlpha(0.25));
     this.updateTracker(this.registry.get('runState').memories.length);
   }
 
@@ -167,6 +235,7 @@ export default class EraScene extends Phaser.Scene {
   // UC-14: fade to the next era, or the ending after the last (UC-16).
   advance() {
     this.cameras.main.fadeOut(400, 13, 13, 26);
+    this.uiCam.fadeOut(400, 13, 13, 26);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (this.era.next) this.scene.start(SCENES.ERA, { eraKey: this.era.next });
       else this.scene.start(SCENES.END);
@@ -175,12 +244,14 @@ export default class EraScene extends Phaser.Scene {
 
   // Era 3's grey rain: thin falling streaks. Placeholder-grade on purpose.
   startRain() {
+    // Screen-space, not world-space: rain should fill the view no matter where
+    // the camera has scrolled to, so it rides the UI camera.
     for (let i = 0; i < 60; i++) {
-      const drop = this.add.rectangle(
+      const drop = this.ui(this.add.rectangle(
         Phaser.Math.Between(0, GAME_WIDTH),
         Phaser.Math.Between(-GAME_HEIGHT, 0),
         1, 6, 0xcfd6e6, 0.6,
-      ).setDepth(8);
+      )).setDepth(8);
       this.tweens.add({
         targets: drop,
         y: GAME_HEIGHT + 8,
@@ -194,7 +265,7 @@ export default class EraScene extends Phaser.Scene {
   spawnNpc(cfg) {
     const startX = cfg.x * TILE_SIZE + TILE_SIZE / 2;
     const startY = cfg.y * TILE_SIZE + TILE_SIZE / 2;
-    const sprite = this.add.sprite(startX, startY, NPC_TEXTURE);
+    const sprite = this.world(this.add.sprite(startX, startY, NPC_TEXTURE));
 
     // Short back-and-forth patrol along one axis. Placeholder NPCs don't
     // collide with the player; they're flavor, not obstacles.
@@ -243,9 +314,13 @@ export default class EraScene extends Phaser.Scene {
       entry.y = Math.floor((sprite.y + 10) / TILE_SIZE);
     }
 
+    this.sortDepth();
+
     // Dialogue mode: world frozen, Space/Enter pages through (UC-9).
     if (this.dialogueBox.isOpen()) {
       this.player.setVelocity(0, 0);
+      this.player.anims.stop();
+      this.player.setFrame(0);
       this.prompt.setVisible(false);
       if (this.interactPressed()) this.dialogueBox.advance();
       return;
@@ -262,13 +337,17 @@ export default class EraScene extends Phaser.Scene {
     this.player.setVelocity(vx * PLAYER_SPEED, vy * PLAYER_SPEED);
     if (facing) {
       this.facing = facing;
-      this.player.setTexture(PLAYER_TEXTURES[facing]);
+      this.player.play(playerAnim(this.outfit, facing), true);
+    } else {
+      // Standing still rests on the idle frame rather than freezing mid-stride.
+      this.player.anims.stop();
+      this.player.setFrame(0);
     }
 
     // ... and targeting (UC-8): prompt over the faced interactable.
     const target = findTarget(this.playerTile(), this.interactables);
     if (target) {
-      this.prompt.setPosition(target.sprite.x, target.sprite.y - 20).setVisible(true);
+      this.prompt.setPosition(target.sprite.x, target.sprite.y - 18).setVisible(true);
       if (this.interactPressed()) target.onInteract();
     } else {
       this.prompt.setVisible(false);

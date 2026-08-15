@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import {
-  SCENES, COLORS, FONT, GAME_WIDTH, GAME_HEIGHT, OUTFIT_TINTS,
+  SCENES, COLORS, FONT, GAME_WIDTH, GAME_HEIGHT,
 } from '../constants.js';
 import { ERAS } from '../eras/index.js';
-import { PLAYER_TEXTURES, HARLEY_TEXTURE } from '../placeholders.js';
+import { playerTexture, HARLEY_TEXTURE } from '../placeholders.js';
 import { createRunState } from '../state.js';
 import DialogueBox from '../ui/DialogueBox.js';
 
@@ -83,10 +83,9 @@ export default class EndScene extends Phaser.Scene {
   // 4) Both of them on the hilltop, then a quiet Play Again (UC-16 / BR-7).
   showTogether() {
     const y = 262; // standing on the silhouette hilltop
-    const alexei = this.add.sprite(GAME_WIDTH / 2 - 12, y, PLAYER_TEXTURES.down);
     const outfit = this.registry.get('runState')?.outfit;
-    if (outfit) alexei.setTint(OUTFIT_TINTS[outfit]);
-    this.add.sprite(GAME_WIDTH / 2 + 12, y, HARLEY_TEXTURE);
+    this.add.sprite(GAME_WIDTH / 2 - 12, y, playerTexture(outfit, 'down'), 0);
+    this.add.sprite(GAME_WIDTH / 2 + 12, y, HARLEY_TEXTURE, 0);
 
     const again = this.add.text(GAME_WIDTH - 8, GAME_HEIGHT - 8, '[ PLAY AGAIN ]', {
       fontFamily: FONT, fontSize: '8px', color: COLORS.PINK_MAUVE,

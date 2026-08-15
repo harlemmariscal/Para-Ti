@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import {
-  SCENES, COLORS, HEX, FONT, GAME_WIDTH, OUTFIT_TINTS,
+  SCENES, COLORS, HEX, FONT, GAME_WIDTH,
 } from '../constants.js';
 import { setOutfit } from '../state.js';
-import { PLAYER_TEXTURES } from '../placeholders.js';
+import { playerTexture } from '../placeholders.js';
 
 // UC-4: choose Casual or Athletic. Exactly two options (BR-6).
 export default class OutfitScene extends Phaser.Scene {
@@ -37,9 +37,9 @@ export default class OutfitScene extends Phaser.Scene {
       .setStrokeStyle(2, HEX.PANEL_BORDER)
       .setInteractive({ useHandCursor: true });
 
-    // TODO(Phase 3): tinted placeholder becomes Alexei's real outfit sprite —
-    // sprites provided by Harley.
-    this.add.image(x, 145, PLAYER_TEXTURES.down).setScale(3).setTint(OUTFIT_TINTS[outfit]);
+    // TODO(Phase 3): this placeholder becomes Alexei's real outfit sprite —
+    // reference photos come from Harley.
+    this.add.image(x, 145, playerTexture(outfit, 'down'), 0).setScale(3);
 
     this.add.text(x, 215, label, {
       fontFamily: FONT, fontSize: '10px', color: COLORS.WHITE,
