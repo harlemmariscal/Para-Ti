@@ -1,8 +1,10 @@
 import { era1 } from './era1-childhood.js';
+import { era2 } from './era2-young-love.js';
+import { era3 } from './era3-drift.js';
+import { era4 } from './era4-now.js';
 
-// Ordered list of eras. Phase 2 appends era2 (Young love), era3 (The drift),
-// era4 (Now, for good). Adding an era = adding a config file + one line here.
-export const ERAS = [era1];
+// Ordered, chronological (BR-1). Adding an era = a config file + one line here.
+export const ERAS = [era1, era2, era3, era4];
 
 export function getEraConfig(key) {
   const era = ERAS.find((e) => e.key === key);

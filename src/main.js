@@ -4,6 +4,7 @@ import BootScene from './scenes/BootScene.js';
 import TitleScene from './scenes/TitleScene.js';
 import OutfitScene from './scenes/OutfitScene.js';
 import EraScene from './scenes/EraScene.js';
+import EndScene from './scenes/EndScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -15,9 +16,10 @@ const config = {
   roundPixels: true,
   physics: { default: 'arcade', arcade: { debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, TitleScene, OutfitScene, EraScene], // EndScene arrives in Phase 2
+  scene: [BootScene, TitleScene, OutfitScene, EraScene, EndScene],
 };
 
 // Gate boot on the pixel font so no text ever renders in a fallback font.
-const start = () => new Phaser.Game(config);
+// The instance is exposed for the verify skill's headless browser driver.
+const start = () => { window.__game = new Phaser.Game(config); };
 document.fonts.load(`16px ${FONT}`).then(start, start);

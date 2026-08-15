@@ -96,15 +96,15 @@ para-ti/
 
 **Goal:** The full skeleton walks — all four eras chain to the ending. Placeholder art/text.
 
-- [ ] EraScene: **objective** hook (one light task per era) → makes the memory reachable
-- [ ] EraScene: **memory** collectible — interact to collect, plays a short scene, unlocks
+- [x] EraScene: **objective** hook (one light task per era) → makes the memory reachable
+- [x] EraScene: **memory** collectible — interact to collect, plays a short scene, unlocks
       the next era; store collected memories for the ending
-- [ ] EraScene: **NPC** interaction + Pokémon-style **dialogue box** (placeholder lines)
-- [ ] **Memory tracker** UI (e.g. ✦ ✦ ✧ ✧ for 2/4)
-- [ ] Four placeholder era configs wired in sequence (era1→era2→era3→era4)
-- [ ] EndScene skeleton — memory montage placeholder → sunset pan (camera + fade) →
+- [x] EraScene: **NPC** interaction + Pokémon-style **dialogue box** (placeholder lines)
+- [x] **Memory tracker** UI (e.g. ✦ ✦ ✧ ✧ for 2/4)
+- [x] Four placeholder era configs wired in sequence (era1→era2→era3→era4)
+- [x] EndScene skeleton — memory montage placeholder → sunset pan (camera + fade) →
       "[ ENDING MESSAGE TBD ]" → Play Again
-- [ ] Fade transitions between eras and into the ending
+- [x] Fade transitions between eras and into the ending
 
 **Deliverable:** Title → Outfit → Era 1→2→3→4 → sunset → end, completable with placeholders.
 

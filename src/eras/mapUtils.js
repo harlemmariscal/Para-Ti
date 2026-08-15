@@ -15,3 +15,12 @@ export function buildMapData(cols, rows, extraWalls = []) {
   }
   return data;
 }
+
+// Inclusive rectangle of wall tiles — building blocks for extraWalls.
+export function wallRect(x0, y0, x1, y1) {
+  const walls = [];
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) walls.push([x, y]);
+  }
+  return walls;
+}

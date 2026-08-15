@@ -37,6 +37,15 @@ Movement: `page.keyboard.down('ArrowRight')` / `'KeyD'` etc. — Phaser listens 
 window. Allow ~900ms after scene-changing clicks (300ms fadeOut + 300ms fadeIn).
 Wait ~1200ms after page load (font gate + boot).
 
+**Never use `page.keyboard.press()`** — its instant down+up is missed by Phaser's
+JustDown sampling. Tap keys as `down(key)` → `sleep(80)` → `up(key)` (dialogue
+advance on Space, interactions, etc.).
+
+The game instance is exposed as `window.__game` — inspect live scene state via
+`page.evaluate(() => window.__game.scene.getScene('EraScene')...)` when
+screenshots alone can't show what's happening (e.g. player hidden behind the
+dialogue box).
+
 Capture `page.on('console')` and `page.on('pageerror')` — zero pageerrors is part
 of the pass bar. A favicon 404 is known noise.
 

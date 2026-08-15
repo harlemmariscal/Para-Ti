@@ -12,4 +12,10 @@ export function setOutfit(state, outfit) {
   return { ...state, outfit };
 }
 
-// Phase 2 (UC-12) adds addMemory(state, memoryKey) here.
+// UC-12/BR-2: one memory per era, never re-collected within a play.
+export function addMemory(state, memoryId) {
+  if (state.memories.includes(memoryId)) {
+    throw new Error(`Memory "${memoryId}" already collected`);
+  }
+  return { ...state, memories: [...state.memories, memoryId] };
+}

@@ -59,7 +59,7 @@ para-ti/
 
 ### EraScene Subsystems
 - **Era config** — Each era is a plain data object; EraScene reads it. Add an era by adding a config, not a scene.
-- **Tilemap** — Tiled-exported JSON; single screen per era; separate collision layer; per-era tint for mood.
+- **Tilemap** — Tiled-exported JSON; one 30×20 map per era viewed through a scrolling 2× camera; separate collision layer; per-era tint for mood. Cosmetic ground variants are sprinkled in at load and never affect collision.
 - **Player movement** — Arcade physics, 4-direction (arrow keys + WASD), collision with tilemap
 - **Objective** — One light task per era (find the note, reach the hilltop, etc.); completing it makes the memory reachable
 - **NPCs** — Optional flavor; Space/Enter triggers a Pokémon-style dialogue box (playlist lyric and/or a real line)
@@ -73,7 +73,7 @@ para-ti/
 | Language | JavaScript (ES6+, no TypeScript) |
 | Bundler | Vite |
 | Map editor | Tiled (exports JSON for Phaser) |
-| Sprite editor | Piskel (16×16 tiles, 16×32 characters) — only for custom sprites |
+| Sprite editor | Piskel (16×16 tiles, 16×32 characters, 3-frame walk strips) — only for custom sprites |
 | World/NPC art | Asset packs (16×16 top-down RPG tilesets), re-tinted per era |
 | Font | Press Start 2P (Google Fonts) |
 | Audio | MP3 + OGG (always provide both for browser compat) |
@@ -85,11 +85,19 @@ para-ti/
 
 **Player character (Alexei)** — Curly hair worn down, beauty mark above the LEFT side of the lip (appears on viewer's RIGHT), athletic build, warm medium-brown skin tone (Mexican/Asian). These details are non-negotiable.
 
-**Art style** — Pokémon Red/Blue Game Boy Color era: 16×16 tiles, 16×32 character sprites, bold black outlines, limited color palettes.
+**Art style** — Pokémon **Black/White 2** (DS, 2012), not Red/Blue. Still 16×16 tiles and 16×32 characters, but: soft shading with a top-left light source, outlines in a dark tone of the base hue (never pure black), three tones per material so nothing is a flat fill, a contact shadow under anything that stands up, and a contact-sorted world where whoever stands lower draws in front. Ground uses several cosmetic variants — a single repeated ground tile reads as a lattice once the camera scrolls.
 
-**Art pipeline** — Asset packs for era worlds and NPCs (re-tinted per era); hand-made only for Alexei's sprite, Harley's sprite, and the 4 memory icons. Do NOT plan to hand-draw the worlds.
+> Superseded the original Red/Blue GBC direction on 2026-08-15 at Harley's call. BW2's real overworld is 3D (perspective camera, camera swings); Phaser is 2D, so the reproducible parts are the framing, palette, shading, animation and UI — not the perspective.
 
-**Structure** — Four eras, chronological, one screen each. Keep each era to a single screen; growing an era is scope creep.
+**Camera** — BW2 frames tight and scrolls. 2× zoom shows ~15×10 tiles of a 30×20 era map, camera trailing the player. This replaced the original "one screen per era" rule; the maps did not change size, only the framing.
+
+**Two cameras** — `EraScene` runs a scrolling/zoomed world camera plus a fixed 1× UI camera. Every display object must be handed to `world()` or `ui()`; an object given to neither draws twice, once scrolled and once not.
+
+**Art pipeline** — Asset packs for era worlds and NPCs (re-tinted per era); hand-made only for Alexei's sprite, Harley's sprite, and the 4 memory icons. Do NOT plan to hand-draw the worlds. Until those land, `src/placeholders.js` generates every texture procedurally at runtime in the BW2 register — swapping in real art must not change a single texture key.
+
+**Outfits are drawn, not tinted** — Alexei's outfit color is baked into her sprite. A whole-sprite tint stains her skin and hair with the shirt color, which is why `OUTFIT_TINTS` became `OUTFIT_COLORS`.
+
+**Structure** — Four eras, chronological. Each era is one 30×20 map; growing a map beyond that is scope creep.
 
 **No save state** — The game holds no persistent data. One ~10-minute sitting, fresh from the title screen each play.
 

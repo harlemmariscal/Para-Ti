@@ -3,7 +3,7 @@
 export function validateEraConfig(config) {
   const label = `Era "${config?.key ?? '?'}"`;
 
-  for (const field of ['key', 'name', 'next', 'tint', 'map', 'spawn']) {
+  for (const field of ['key', 'name', 'next', 'tint', 'map', 'spawn', 'objective', 'memory']) {
     if (!(field in config)) throw new Error(`${label}: missing "${field}"`);
   }
 
@@ -30,6 +30,36 @@ export function validateEraConfig(config) {
   }
   if (collision.includes(data[y][x])) {
     throw new Error(`${label}: spawn sits on a collision tile`);
+  }
+
+  const inBounds = (px, py) =>
+    Number.isInteger(px) && Number.isInteger(py) && px >= 0 && py >= 0 && px < cols && py < data.length;
+  const walkable = (px, py) => inBounds(px, py) && !collision.includes(data[py][px]);
+
+  const { objective, memory } = config;
+  if (objective.type === 'interact') {
+    if (!inBounds(objective.target?.x, objective.target?.y)) {
+      throw new Error(`${label}: objective target is out of bounds`);
+    }
+  } else if (objective.type === 'reach') {
+    const z = objective.zone;
+    if (!z || !inBounds(z.x, z.y) || !inBounds(z.x + z.w - 1, z.y + z.h - 1)) {
+      throw new Error(`${label}: objective zone is out of bounds`);
+    }
+  } else {
+    throw new Error(`${label}: objective.type must be "interact" or "reach"`);
+  }
+
+  if (!walkable(memory.x, memory.y)) {
+    throw new Error(`${label}: memory must sit on a walkable tile`);
+  }
+  for (const npc of config.npcs ?? []) {
+    if (!walkable(npc.x, npc.y)) {
+      throw new Error(`${label}: NPC "${npc.name}" must stand on a walkable tile`);
+    }
+  }
+  if (config.harley && !walkable(config.harley.x, config.harley.y)) {
+    throw new Error(`${label}: harley must stand on a walkable tile`);
   }
 
   return true;
